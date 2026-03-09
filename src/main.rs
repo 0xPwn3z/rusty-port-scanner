@@ -1,6 +1,7 @@
 mod scanner;
 mod banner;
 mod output;
+mod service;
 
 use tokio::task;
 use tokio::sync::Semaphore;
