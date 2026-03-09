@@ -1,10 +1,13 @@
-use tokio::net::TcpStream;
+mod scanner;
+mod banner;
+mod output;
+
 use tokio::task;
 use tokio::sync::Semaphore;
 use std::sync::Arc;
-use tokio::time::timeout;
 use std::time::Duration;
 use clap::Parser;
+use crate::scanner::check_port;
 
 #[derive(Parser)]
 #[command(name = "rusty-port-scanner")]
@@ -25,13 +28,6 @@ struct Args {
     /// Maximum concurrent connections
     #[arg(short, long, default_value_t = 30)]
     concurrency: usize,
-}
-
-async fn check_port(ip: String, port: u16, timeout_duration: Duration) {
-    match timeout(timeout_duration, TcpStream::connect((ip, port))).await {
-        Ok(Ok(_)) => println!("[+] Port {} is open", port),
-        _ => (),
-    }
 }
 
 #[tokio::main]
