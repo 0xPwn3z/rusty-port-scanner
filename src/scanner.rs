@@ -1,10 +1,12 @@
+use std::sync::Arc;
 use std::time::Duration;
+use indicatif::ProgressBar;
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 use crate::banner::grab_banner;
 use crate::service::{detect_service, probe_service};
 
-pub async fn check_port(ip: String, port: u16, timeout_duration: Duration) {
+pub async fn check_port(ip: String, port: u16, timeout_duration: Duration, pb: &Arc<ProgressBar>) {
     match timeout(timeout_duration, TcpStream::connect((ip, port))).await {
         Ok(Ok(mut stream)) => {
             let service = detect_service(port);
@@ -21,7 +23,7 @@ pub async fn check_port(ip: String, port: u16, timeout_duration: Duration) {
 
             // 3. Print the result
             match result {
-                Some(info) => println!("[+] Port {}/tcp open | {}", port, info.trim()),
+                Some(info) =>  pb.println(format!("[+] Port {}/tcp open | {}", port, info.trim())),
                 None       => println!("[+] Port {}/tcp open | {}", port, service),
             }
         },
