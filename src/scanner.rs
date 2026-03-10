@@ -2,17 +2,27 @@ use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 use crate::banner::grab_banner;
-use crate::service::detect_service;
+use crate::service::{detect_service, probe_service};
 
 pub async fn check_port(ip: String, port: u16, timeout_duration: Duration) {
     match timeout(timeout_duration, TcpStream::connect((ip, port))).await {
-        Ok(Ok(stream)) => {
-            let banner = grab_banner(stream, timeout_duration).await;
+        Ok(Ok(mut stream)) => {
             let service = detect_service(port);
-            if let Some(banner) = banner {
-                println!("[+] Port {} is open | {}", port, banner.trim());
+
+            // 1. Try to grab the banner first
+            let result = grab_banner(&mut stream, timeout_duration).await;
+
+            // 2. If banner grab fails, try service-specific probes
+            let result = if result.is_none() {
+                probe_service(&mut stream, port, timeout_duration).await
             } else {
-                println!("[+] Port {} is open | Expected: {}", port, service)
+                result
+            };
+
+            // 3. Print the result
+            match result {
+                Some(info) => println!("[+] Port {}/tcp open | {}", port, info.trim()),
+                None       => println!("[+] Port {}/tcp open | {}", port, service),
             }
         },
         _ => (),

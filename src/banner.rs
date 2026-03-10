@@ -3,7 +3,7 @@ use tokio::time::timeout;
 use std::time::Duration;
 use tokio::net::TcpStream;
 
-pub async fn grab_banner(mut stream: TcpStream, timeout_duration: Duration) -> Option<String> {
+pub async fn grab_banner(stream: &mut TcpStream, timeout_duration: Duration) -> Option<String> {
     let mut buffer = vec![0u8; 1024];
     match timeout(timeout_duration, stream.read(&mut buffer)).await {
         Ok(Ok(n)) if n > 0 => {

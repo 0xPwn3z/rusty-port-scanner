@@ -1,5 +1,8 @@
+use std::time::Duration;
 use tokio::net::TcpStream;
+use tokio::time::timeout;
 use phf::phf_map;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 pub static SERVICES: phf::Map<u16, &'static str> = phf_map! {
     20u16 => "FTP Data",
@@ -92,6 +95,34 @@ pub fn detect_service(port: u16) -> &'static str {
     SERVICES.get(&port).copied().unwrap_or("Unknown")
 }
 
-pub async fn probe_service(stream: &mut TcpStream, port: u16) -> Option<String> {
-    todo!()
+pub async fn probe_service(stream: &mut TcpStream, port: u16, timeout_duration: Duration) -> Option<String> {
+    let probe = match port {
+        80 | 8080 | 8888 => "GET / HTTP/1.0\r\n\r\n",
+        _ => return None,
+    };
+
+    // Send the probe
+    stream.write_all(probe.as_bytes()).await.ok()?;
+
+    let mut buffer = vec![0u8; 4096];
+    match timeout(timeout_duration, stream.read(&mut buffer)).await {
+        Ok(Ok(n)) if n > 0 => {
+            let response = String::from_utf8_lossy(&buffer[..n]).to_string();
+            // Extract useful information from the response (e.g., Server header)
+            let useful: Vec<&str> = response
+                .lines()
+                .filter(|line| {
+                    line.starts_with("HTTP/") ||
+                        line.to_lowercase().starts_with("server:")
+                })
+                .collect();
+            // If we found something useful, return it; otherwise, return None
+            if useful.is_empty() {
+                None
+            } else {
+                Some(useful.join(" | "))
+            }
+        },
+        _ => None,
+    }
 }
